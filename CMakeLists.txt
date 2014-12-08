@@ -14,6 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_ros_planning
   geometry_msgs
   message_generation
+
+  baxter_core_msgs
 )
 
 find_package(cmake_modules REQUIRED)
@@ -76,6 +78,7 @@ generate_messages(
   DEPENDENCIES
   sensor_msgs
   geometry_msgs
+  baxter_core_msgs
 )
 
 ###################################
@@ -87,7 +90,20 @@ generate_messages(
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package(CATKIN_DEPENDS actionlib sensor_msgs std_msgs moveit_core moveit_ros_planning geometry_msgs control_msgs roscpp message_runtime DEPENDS system_lib Eigen)
+catkin_package(CATKIN_DEPENDS
+               actionlib
+               sensor_msgs
+               baxter_core_msgs
+               std_msgs
+               moveit_core
+               moveit_ros_planning
+               geometry_msgs
+               control_msgs
+               roscpp
+               message_runtime
+               DEPENDS
+               system_lib
+               Eigen)
 
 ###########
 ## Build ##
