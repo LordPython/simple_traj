@@ -1,0 +1,18 @@
+<launch>
+  <!-- The semantic description that corresponds to the URDF -->
+  <param name="robot_description_semantic" textfile="$(find baxter_moveit_config)/config/baxter.srdf" />
+  
+  <!-- Load to the parameter server yaml files -->
+  <group ns="robot_description_planning">    
+    <rosparam command="load" file="$(find baxter_moveit_config)/config/joint_limits.yaml"/>
+  </group>
+
+
+  <node name="simple_traj"
+        pkg="simple_traj"
+        type="simple_traj"
+        respawn="false" output="screen">
+    <rosparam command="load"
+              file="$(find baxter_moveit_config)/config/kinematics.yaml"/>
+  </node>
+</launch>
