@@ -21,6 +21,25 @@
 #define _USE_MATH_DEFINES
 #define JOINTS 7
 
+// ----------------------------------
+#include <unistd.h>
+#include <stdio.h>
+
+// cc.byexamples.com calls this int kbhit(), to mirror the Windows console
+//  function of the same name.  Otherwise, the code is the same.
+bool kbhit()
+{
+  struct timeval tv;
+  fd_set fds;
+  tv.tv_sec = 0;
+  tv.tv_usec = 0;
+  FD_ZERO(&fds);
+  FD_SET(STDIN_FILENO, &fds);
+  select(STDIN_FILENO+1, &fds, NULL, NULL, &tv);
+  return (FD_ISSET(0, &fds));
+}
+// -----------------------------------
+
 typedef actionlib::SimpleActionClient< control_msgs::FollowJointTrajectoryAction > TrajClient;
 
 class RobotArm
@@ -56,8 +75,10 @@ private:
     Eigen::Affine3d desired_pose;
 
 public:
-    Eigen::Affine3d subscribed_pose_;
+    //Eigen::Affine3d subscribed_pose_;
+    geometry_msgs::Pose subscribed_pose_;
     bool StartANewTraj;
+    bool ContinueTraj;
     //our goal variable
     control_msgs::FollowJointTrajectoryGoal goal_ToBeSend;
     //! Initialize the action client and wait for action server to come up
@@ -65,6 +86,7 @@ public:
     {
         // Initialize
         this->StartANewTraj = false;
+        this->ContinueTraj = false;
 
         // tell the action client that we want to spin a thread by default
         Right_traj_client_ = new TrajClient("/robot/limb/right/follow_joint_trajectory", true);
@@ -119,10 +141,10 @@ public:
             link_names[5] = "left_lower_forearm";
             link_names[6] = "left_hand";
             */
-            link_names[0] = "left_e0";
-            link_names[1] = "left_e1";
-            link_names[2] = "left_s0";
-            link_names[3] = "left_s1";
+            link_names[0] = "left_s0";
+            link_names[1] = "left_s1";
+            link_names[2] = "left_e0";
+            link_names[3] = "left_e1";
             link_names[4] = "left_w0";
             link_names[5] = "left_w1";
             link_names[6] = "left_w2";
@@ -141,10 +163,10 @@ public:
         link_names[5] = "right_lower_forearm";
         link_names[6] = "right_hand";
         */
-        link_names[0] = "right_e0";
-        link_names[1] = "right_e1";
-        link_names[2] = "right_s0";
-        link_names[3] = "right_s1";
+        link_names[0] = "right_s0";
+        link_names[1] = "right_s1";
+        link_names[2] = "right_e0";
+        link_names[3] = "right_e1";
         link_names[4] = "right_w0";
         link_names[5] = "right_w1";
         link_names[6] = "right_w2";
@@ -164,12 +186,12 @@ public:
         target_pose.header.stamp = ros::Time::now();
         // Convert to Eigen
         // Set target pose from subscribed message
-        Eigen::Translation3d translation(target_pose.pose.position.x, target_pose.pose.position.y, target_pose.pose.position.z);
-        Eigen::Quaterniond rotation(target_pose.pose.orientation.w, target_pose.pose.orientation.x, target_pose.pose.orientation.y, target_pose.pose.orientation.z);
-        Eigen::Affine3d new_target_pose = translation * rotation;
+        //Eigen::Translation3d translation(target_pose.pose.position.x, target_pose.pose.position.y, target_pose.pose.position.z);
+        //Eigen::Quaterniond rotation(target_pose.pose.orientation.w, target_pose.pose.orientation.x, target_pose.pose.orientation.y, target_pose.pose.orientation.z);
+        //Eigen::Affine3d new_target_pose = translation * rotation;
         // return the pose
-        subscribed_pose_ = new_target_pose;
-        this->StartANewTraj = true;
+        subscribed_pose_ = target_pose.pose;//new_target_pose;
+        //this->StartANewTraj = true;
 
     }
 
@@ -232,40 +254,37 @@ public:
         return target_pose;
     }
 
-    std::vector<double> JointValueCalculation(Eigen::Affine3d* target_posePtr)
+    std::vector<double> JointValueCalculation(/*Eigen::Affine3d&*/geometry_msgs::Pose& target_posePtr)
     {
         std::vector<double> joint_values;
 
         //const robot_state::JointModelGroup* joint_model_group = kinematic_model->getJointModelGroup("right_arm");
         //const robot_model::JointModelGroup joint_model_group = baxter_right_arm_group;
 
-        const std::vector<std::string> &joint_names = baxter_right_arm_group->getJointModelNames();
+        const std::vector<std::string> &joint_names = baxter_left_arm_group->getJointModelNames();
 
         ROS_INFO("Model frame: %s", kinematic_model->getModelFrame().c_str());
         // Get Current Joint Values
         ROS_INFO("Current set of joint values");
-        kinematic_state->copyJointGroupPositions(baxter_right_arm_group, joint_values);
+        kinematic_state->copyJointGroupPositions(baxter_left_arm_group, joint_values);
         for(std::size_t i = 0; i < joint_names.size(); ++i)
         {
             std::cout<<"Joint"<<joint_names[i].c_str()<<":"<<joint_values[i]<<std::endl;
             //ROS_INFO("Joint %s: %f", joint_names[i].c_str(), joint_values[i]);
         }
         std::cout<<"==============================================="<<std::endl;
+        std::cout<<kinematic_state->getRobotModel().get()->getModelFrame()<<std::endl;
 
         // Get current state
         //kinematic_state->setJointGroupPositions(baxter_right_arm_group, joint_values);
 
-        if(target_posePtr==NULL)
-        {
-            ROS_INFO("No targetPos Assigned, return current joint values");
-            return joint_values;
-        }
-
         // Solve IK
-        bool found_ik = kinematic_state->setFromIK(baxter_right_arm_group, *target_posePtr, 20, 0.1);
+        std::vector<double> consistencyLimits = { 3,3, 3, 3, 3, 3, 3 };
+        std::cout << "x: " <<target_posePtr.position.x <<" y: "<< target_posePtr.position.y <<" z: "<< target_posePtr.position.z;
+        bool found_ik = kinematic_state->setFromIK(baxter_left_arm_group, target_posePtr, 5, 5.0);
         if (found_ik)
         {
-            kinematic_state->copyJointGroupPositions(baxter_right_arm_group, joint_values);
+            kinematic_state->copyJointGroupPositions(baxter_left_arm_group, joint_values);
             ROS_INFO("Model frame: %s", kinematic_model->getModelFrame().c_str());
             for(std::size_t i=0; i < joint_names.size(); ++i)
             {
@@ -277,6 +296,7 @@ public:
         else
         {
             ROS_INFO("Did not find IK solution, return current joint values");
+            std::cout << "No IK Solution found!" << std::endl;
             return joint_values;
         }
     }
@@ -286,13 +306,13 @@ public:
         control_msgs::FollowJointTrajectoryGoal SendingGoal;
 
         // First, the joint names, which apply to all waypoints
-        SendingGoal.trajectory.joint_names.push_back("right_s0");
-        SendingGoal.trajectory.joint_names.push_back("right_s1");
-        SendingGoal.trajectory.joint_names.push_back("right_e0");
-        SendingGoal.trajectory.joint_names.push_back("right_e1");
-        SendingGoal.trajectory.joint_names.push_back("right_w0");
-        SendingGoal.trajectory.joint_names.push_back("right_w1");
-        SendingGoal.trajectory.joint_names.push_back("right_w2");
+        SendingGoal.trajectory.joint_names.push_back("left_s0");
+        SendingGoal.trajectory.joint_names.push_back("left_s1");
+        SendingGoal.trajectory.joint_names.push_back("left_e0");
+        SendingGoal.trajectory.joint_names.push_back("left_e1");
+        SendingGoal.trajectory.joint_names.push_back("left_w0");
+        SendingGoal.trajectory.joint_names.push_back("left_w1");
+        SendingGoal.trajectory.joint_names.push_back("left_w2");
 
         // Resize trajectory points based on specified goalnumber
         SendingGoal.trajectory.points.resize(GoalNum);
@@ -325,7 +345,8 @@ public:
     {
         // When to start the trajectory: 1s from now
         goal.trajectory.header.stamp = ros::Time::now() + ros::Duration(0.5);
-        Right_traj_client_->sendGoal(goal);
+        //Right_traj_client_->sendGoal(goal);
+        Left_traj_client_->sendGoal(goal);
     }
 
     //! Returns the current state of the action
@@ -337,19 +358,25 @@ public:
 
 int main(int argc, char** argv)
 {
+    std::cout << "<<<<<<<<<<<<<<<< ROBOT Initializing <<<<<<<<<<<<" << std::endl;
     // Init the ROS node
     ros::init(argc, argv, "baxter_arm_traj_controller");
+    std::cout << "Node initialized..." << std::endl;
     // Make Sure that the Loader has get the model
     robot_model_loader::RobotModelLoader Robot_model_loader("robot_description");
-    //ros::Duration ModelLoadingTime = ros::Duration(0.5, 0);
-    //ModelLoadingTime.sleep();
+    std::cout << "Model loaded..." << std::endl;
+    ros::Duration ModelLoadingTime = ros::Duration(0.5, 0);
+    ModelLoadingTime.sleep();
     ros::NodeHandle Nhandle;
+    std::cout << "Node handle created..." << std::endl;
     RobotArm arm(Nhandle, Robot_model_loader.getModel());
+    std::cout << "Arm created..." << std::endl;
     std::cout<<">>>>>>>>>>>>>>>>ROBOT Initilized>>>>>>>>>>>>>>>>"<<std::endl;
 
     // Start the trajectory
     control_msgs::FollowJointTrajectoryGoal traj_goal;
-    Eigen::Affine3d my_pose;
+    //Eigen::Affine3d my_pose;
+    geometry_msgs::Pose my_pose;
     std::vector<double> DesiredJointValue;
 
 
@@ -364,20 +391,30 @@ int main(int argc, char** argv)
     while(ros::ok())
     {
         ros::spinOnce();
-        // Setting target pose to one that is recieved in subscribed topic
-        my_pose = arm.subscribed_pose_;
 
 
+        if(kbhit()) {
+            getchar();
+            // Setting target pose to one that is recieved in subscribed topic
+            my_pose = arm.subscribed_pose_;
+            std::cout << "KBHIT" << std::endl;
+            arm.StartANewTraj = true;
+        }
 
         if(arm.StartANewTraj)
         {
             // Calculating Desired Joint Values based on pose
-            DesiredJointValue = arm.JointValueCalculation(&my_pose);
+            geometry_msgs::Pose before_pose = my_pose;
+            before_pose.position.x -= 0.06;
+            DesiredJointValue = arm.JointValueCalculation(before_pose);
             // Creating a Goal Chain to be sent
             traj_goal = arm.CreatSendingGoal(1,DesiredJointValue);
             // Sending Goal to JointTrajectoryServer
             arm.SendingTrajectory(traj_goal);
+            std::cout << "DONE SENDING"<<std::endl;
             arm.StartANewTraj = false;
+            ros::Duration(5.0).sleep();
+            arm.ContinueTraj = true;
         }
 
         /*
@@ -394,9 +431,15 @@ int main(int argc, char** argv)
         }
         */
 
-        if(arm.getState().isDone())
+        if(arm.ContinueTraj)
         {
-            std::cout<<"Desired Pose Reached. Waiting for new target pose input"<<std::endl;
+            DesiredJointValue = arm.JointValueCalculation(my_pose);
+            // Creating a Goal Chain to be sent
+            traj_goal = arm.CreatSendingGoal(1,DesiredJointValue);
+            // Sending Goal to JointTrajectoryServer
+            arm.SendingTrajectory(traj_goal);
+            arm.ContinueTraj = false;
+            //std::cout<<"Desired Pose Reached. Waiting for new target pose input"<<std::endl;
             //StartANewTraj = true;
         }
 

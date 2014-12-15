@@ -174,59 +174,59 @@ def main():
     right = baxter_interface.Limb('right')
 
     # Move to neutral position for both arms
-    right.move_to_joint_positions(right_neutral())
+    #right.move_to_joint_positions(right_neutral())
     left.move_to_joint_positions(left_neutral())
 
     # Line up to grab object
     left.move_to_joint_positions(left_point1())
     # sleep 1 secs
-    rospy.sleep(1.0)
+    #rospy.sleep(1.0)
     # Move to object location
-    left.move_to_joint_positions(left_point2())
+    #left.move_to_joint_positions(left_point2())
     # sleep 1 secs
-    rospy.sleep(1.0)
+    #rospy.sleep(1.0)
     # Close left gripper
-    left_gripper.close()
+    #left_gripper.close()
     # sleep 3 secs
-    rospy.sleep(2.0)
+    #rospy.sleep(2.0)
     # Lift up object
-    left.move_to_joint_positions(left_point3())
+    #left.move_to_joint_positions(left_point3())
     # sleep 1 secs
-    rospy.sleep(1.0)
+    #rospy.sleep(1.0)
     # Move out of shelf
-    left.move_to_joint_positions(left_point4())
+    #left.move_to_joint_positions(left_point4())
     # sleep 1 secs
-    rospy.sleep(1.0)
+    #rospy.sleep(1.0)
     # Move to handoff position for left arm
-    left.move_to_joint_positions(left_point5())
+    #left.move_to_joint_positions(left_point5())
     # sleep 1 secs
-    rospy.sleep(1.0)
+    #rospy.sleep(1.0)
     # Move to handoff position for right arm
-    right.move_to_joint_positions(right_point1())
+    #right.move_to_joint_positions(right_point1())
     # sleep 1 secs
-    rospy.sleep(1.0)
+    #rospy.sleep(1.0)
     # Move to grab position for right arm
-    right.move_to_joint_positions(right_point2())
+    #right.move_to_joint_positions(right_point2())
     # sleep 3 secs
-    rospy.sleep(1.0)
+    #rospy.sleep(1.0)
     # Close right gripper
-    right_gripper.close()
+    #right_gripper.close()
     # sleep
-    rospy.sleep(1.0)
+    #rospy.sleep(1.0)
     # Open left gripper
-    left_gripper.open()
+    #left_gripper.open()
     # sleep 1 secs
-    rospy.sleep(1.0)
+    #rospy.sleep(1.0)
     # Move to handoff position
-    right.move_to_joint_positions(right_point1())
+    #right.move_to_joint_positions(right_point1())
     # sleep 1 secs
-    rospy.sleep(1.0)
+    #rospy.sleep(1.0)
     # Move to dropoff position
-    right.move_to_joint_positions(right_point3())
+    #right.move_to_joint_positions(right_point3())
     # sleep
-    rospy.sleep(1.0)
+    #rospy.sleep(1.0)
     # Open right gripper
-    right_gripper.open()
+    #right_gripper.open()
 
 
     print "Task Done :-)"
